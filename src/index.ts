@@ -16,6 +16,30 @@ const key = (id: string, name: string) => `books/${id}/${name}`
 
 type Meta = { title: string; author: string; pages: number; chars: number; figures: number; added: number }
 type Progress = { pos: number; pct: number }
+type Para = { text: string; heading?: boolean; img?: string }
+
+// 受け付けるサイズの上限（1冊ぶん）
+const MAX_PDF = 60 * 1024 * 1024
+const MAX_IMG = 8 * 1024 * 1024
+const MAX_JSON = 8 * 1024 * 1024
+const MAX_PARAS = 20000
+const MAX_TEXT = 4000
+
+const isStr = (v: unknown, max: number): v is string => typeof v === 'string' && v.length <= max
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0
+const validators: Record<'paras' | 'meta' | 'progress', (v: unknown) => boolean> = {
+  paras: (v) =>
+    Array.isArray(v) && v.length <= MAX_PARAS &&
+    v.every((p: Para) => p && typeof p === 'object' && isStr(p.text, MAX_TEXT) &&
+      (p.heading === undefined || typeof p.heading === 'boolean') &&
+      (p.img === undefined || (typeof p.img === 'string' && IMG.test(p.img)))),
+  meta: (v) => {
+    const m = v as Meta
+    return !!m && typeof m === 'object' && isStr(m.title, 300) && isStr(m.author, 300) &&
+      isNum(m.pages) && isNum(m.chars) && isNum(m.figures) && isNum(m.added)
+  },
+  progress: (v) => { const p = v as Progress; return !!p && typeof p === 'object' && isNum(p.pos) && isNum(p.pct) && p.pct <= 100 },
+}
 
 async function readJson<T>(bucket: R2Bucket, k: string): Promise<T | null> {
   const o = await bucket.get(k)
@@ -32,6 +56,14 @@ api.use('/books/:id/*', async (c, next) => {
   if (!ID.test(c.req.param('id'))) return c.json({ error: 'bad id' }, 400)
   await next()
 })
+
+// 本文を受け取る前に Content-Length で上限を確認する
+async function readBody(c: { req: { header: (n: string) => string | undefined; arrayBuffer: () => Promise<ArrayBuffer> } }, max: number) {
+  const len = Number(c.req.header('content-length') ?? 0)
+  if (len > max) return null
+  const buf = await c.req.arrayBuffer()
+  return buf.byteLength > max ? null : buf
+}
 
 // 本の一覧（meta.json があるものだけ＝アップロードが完了したもの）
 api.get('/books', async (c) => {
@@ -73,26 +105,31 @@ api.get('/books/:id', async (c) => {
 
 // アップロード（クライアントで解析した結果を置く。meta.json は最後に送る）
 api.put('/books/:id/pdf', async (c) => {
-  await c.env.BOOKS.put(key(c.req.param('id'), 'book.pdf'), await c.req.arrayBuffer(), {
-    httpMetadata: { contentType: 'application/pdf' },
-  })
+  const buf = await readBody(c, MAX_PDF)
+  if (!buf) return c.json({ error: 'too large' }, 413)
+  if (new TextDecoder().decode(buf.slice(0, 5)) !== '%PDF-') return c.json({ error: 'not a pdf' }, 400)
+  await c.env.BOOKS.put(key(c.req.param('id'), 'book.pdf'), buf, { httpMetadata: { contentType: 'application/pdf' } })
   return c.json({ ok: true })
 })
+const PNG_SIG = [0x89, 0x50, 0x4e, 0x47]
 api.put('/books/:id/img/:name', async (c) => {
   const name = c.req.param('name')
   if (!IMG.test(name)) return c.json({ error: 'bad name' }, 400)
-  await c.env.BOOKS.put(key(c.req.param('id'), `img/${name}`), await c.req.arrayBuffer(), {
-    httpMetadata: { contentType: 'image/png' },
-  })
+  const buf = await readBody(c, MAX_IMG)
+  if (!buf) return c.json({ error: 'too large' }, 413)
+  if (!PNG_SIG.every((b, i) => new Uint8Array(buf, 0, 4)[i] === b)) return c.json({ error: 'not a png' }, 400)
+  await c.env.BOOKS.put(key(c.req.param('id'), `img/${name}`), buf, { httpMetadata: { contentType: 'image/png' } })
   return c.json({ ok: true })
 })
 for (const name of ['paras', 'meta', 'progress'] as const) {
   api.put(`/books/:id/${name}`, async (c) => {
-    const text = await c.req.text()
-    try { JSON.parse(text) } catch { return c.json({ error: 'bad json' }, 400) }
-    await c.env.BOOKS.put(key(c.req.param('id'), `${name}.json`), text, {
-      httpMetadata: { contentType: 'application/json' },
-    })
+    const buf = await readBody(c, MAX_JSON)
+    if (!buf) return c.json({ error: 'too large' }, 413)
+    const text = new TextDecoder().decode(buf)
+    let v: unknown
+    try { v = JSON.parse(text) } catch { return c.json({ error: 'bad json' }, 400) }
+    if (!validators[name](v)) return c.json({ error: 'bad shape' }, 400)
+    await c.env.BOOKS.put(key(c.req.param('id'), `${name}.json`), text, { httpMetadata: { contentType: 'application/json' } })
     return c.json({ ok: true })
   })
 }
