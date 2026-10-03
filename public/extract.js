@@ -26,7 +26,7 @@ async function loadPdfjs() {
 const normalizeCJK = s => s.replace(/[⺀-⿟]/g, c => c.normalize('NFKC'));
 const CJK = '　-ヿ㐀-鿿豈-﫿＀-￯';
 const isCJK = c => new RegExp(`[${CJK}]`).test(c);
-const tightenSpaces = t => t.replace(new RegExp(` (?=[${CJK}])`, 'g'), '').replace(new RegExp(`([${CJK}]) `, 'g'), '$1');
+const tightenSpaces = t => t.replace(new RegExp(` (?=[${CJK}])`, 'g'), '').replace(new RegExp(`([${CJK}]) `, 'g'), '$1').replace(/(\d) ?- ?(\d)/g, '$1-$2');
 
 const CAPTION_RE = /^([▲▼△▽]?)\s*(図|表)\s*[\d０-９]+[.．‐-]?[\d０-９]*/;
 const BULLET_RE = /^([•・●○◦▪■□]|[①-⑳]|[\d０-９]+[.．)）]\s|[a-zA-Z][.)]\s)/;
@@ -87,6 +87,17 @@ async function cropFigure(rendered, band) {
   if (!png || png.size <= 600 * 1024) return png ? { blob: png, ext: 'png' } : null;
   const jpg = await new Promise(res => out.toBlob(res, 'image/jpeg', 0.9));
   return jpg && jpg.size < png.size ? { blob: jpg, ext: 'jpg' } : { blob: png, ext: 'png' };
+}
+
+/* ---------- 目次の除去 ---------- */
+// 目次の行は「見出し . . . . . 12」のようにリーダー（点線）とページ番号が並ぶ。
+// 点線が3回以上ある段落を目次とみなして落とし、直前の「目次」という見出しも消す
+const isTocPara = p => !p.img && (p.text.match(/\.\s\./g) || []).length >= 3;
+function removeToc(paras) {
+  for (let i = paras.length - 1; i >= 0; i--) {
+    if (isTocPara(paras[i])) paras.splice(i, 1);
+    else if (paras[i].heading && /^(目\s*次|もくじ|contents)$/i.test(paras[i].text)) paras.splice(i, 1);
+  }
 }
 
 /* ---------- 本体 ---------- */
@@ -157,21 +168,33 @@ export async function extractPdf(file, onProgress = () => {}) {
       const bullet = BULLET_RE.test(l.text);
       let newPara;
       if (!cur) newPara = true;
-      else if (heading) newPara = !cur.heading || bigGap;      // 複数行の見出しはつなげる
+      // 見出し行が続くとき: 「第1章」のような番号だけの行は次の行とつなぐ。それ以外は同じ大きさの行だけつなぐ
+      else if (heading) {
+        const chapNumOnly = /^第?\s*[\d０-９一二三四五六七八九十]+\s*[章節部話]?$/.test(cur.text.trim());
+        // 見出しは文字が大きいぶん行間も広いので、行間の判定は文字の大きさに合わせる
+        const headingGap = prev && (prev.y - l.y) > Math.max(lineGap * 1.6, Math.max(prev.h, l.h) * 2.2);
+        // 英字が混ざると行の高さが数pt変わるので、大きさの違いは15%まで許す
+        newPara = !cur.heading || (!chapNumOnly && (headingGap || Math.abs(cur.h - l.h) > Math.max(1.5, l.h * 0.15)));
+      }
       else if (cur.heading || bullet || bigGap) newPara = true;
       else if (indent && prevEnd) newPara = true;
       else if (i === first) newPara = prevEnd;                   // ページをまたぐ段落はつなげる
       else newPara = false;
-      if (newPara) { flush(); cur = { text: '', heading }; }
+      if (newPara) { flush(); cur = { text: '', heading, h: l.h }; }
       let t = cur.text; const s = l.text;
       if (/[A-Za-z]-$/.test(t) && /^[a-z]/.test(s)) t = t.slice(0, -1);
       else if (t && !isCJK(t.slice(-1)) && !isCJK(s[0])) t += ' ';
       cur.text = t + s;
+      cur.h = l.h; // 直前の行の大きさを覚えておく（見出しの続き行の判定に使う）
     }
     rendered = null; // ページのcanvasを解放
   }
   flush();
-  for (const p of paras) if (p.heading) p.text = p.text.replace(/^(第?[\d.]+章?)(?=[^\s\d.])/, '$1 ');
+  for (const p of paras) if (p.heading) {
+    p.text = p.text.replace(/^第\s*([\d０-９]+)\s*([章節部話])/, '第$1$2'); // 「第 1 章」→「第1章」
+    p.text = p.text.replace(/^(第?[\d.]+[章節部話]?)(?=[^\s\d.\-章節部話])/, '$1 '); // 「1.1見出し」→「1.1 見出し」（日付の 2023-05-21 は対象外）
+  }
+  removeToc(paras);
 
   const chars = paras.filter(p => !p.img).reduce((n, p) => n + p.text.replace(/\s/g, '').length, 0);
   pdf.destroy();

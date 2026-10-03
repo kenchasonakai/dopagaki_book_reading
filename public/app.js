@@ -171,9 +171,22 @@ function show() {
   $('#figure').hidden = !c.img;
   if (c.img) { $('#figImg').src = api.imgUrl(doc.id, c.img); $('#figImg').alt = c.t; $('#figCap').textContent = c.t; }
   else { wordEl.innerHTML = chunkHTML(c); wordEl.classList.toggle('heading', !!c.heading); place(); }
+  preloadFigures();
   updateStats();
   if (!playing) renderContext();
   saveProgressSoon();
+}
+// 少し先にある図の画像を先に読み込んでおく（表示の瞬間に待たされないように）
+const preloaded = new Set();
+function preloadFigures() {
+  for (let i = idx + 1; i < Math.min(chunks.length, idx + 80); i++) {
+    const c = chunks[i];
+    if (!c.img) continue;
+    const url = api.imgUrl(doc.id, c.img);
+    if (preloaded.has(url)) continue;
+    preloaded.add(url);
+    new Image().src = url;
+  }
 }
 function fmtTime(ms) {
   const s = Math.round(ms / 1000);
@@ -295,17 +308,22 @@ async function importPdf(file, prefix = '') {
   const r = await extractPdf(file, say);
   if (!r.paras.length) throw new Error('文字を取り出せませんでした（画像だけのPDFの可能性があります）');
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  say('PDFを保存しています…');
-  await api.putPdf(id, file);
-  const names = Object.keys(r.images);
-  let done = 0;
-  const worker = async () => { let n; while ((n = names.shift())) { await api.putImage(id, n, r.images[n]); say(`図を保存しています… ${++done} / ${r.figures}`); } };
-  await Promise.all([worker(), worker(), worker(), worker()]);
-  say('本文を保存しています…');
-  await api.putJson(id, 'paras', r.paras);
-  const meta = { title: r.title, author: r.author, pages: r.pages, chars: r.chars, figures: r.figures, added: Date.now() };
-  await api.putJson(id, 'meta', meta);
-  return { id, meta, paras: r.paras, progress: null };
+  try {
+    say('PDFを保存しています…');
+    await api.putPdf(id, file);
+    const names = Object.keys(r.images);
+    let done = 0;
+    const worker = async () => { let n; while ((n = names.shift())) { await api.putImage(id, n, r.images[n]); say(`図を保存しています… ${++done} / ${r.figures}`); } };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    say('本文を保存しています…');
+    await api.putJson(id, 'paras', r.paras);
+    const meta = { title: r.title, author: r.author, pages: r.pages, chars: r.chars, figures: r.figures, added: Date.now() };
+    await api.putJson(id, 'meta', meta);
+    return { id, meta, paras: r.paras, progress: null };
+  } catch (e) {
+    await api.del(id).catch(() => {}); // 途中まで上がったファイルを残さない
+    throw e;
+  }
 }
 // 複数ファイルは1冊ずつ順に取り込む。最後に、最初に成功した本を開く
 let importing = false;
@@ -370,6 +388,29 @@ $('#shelf').addEventListener('click', async e => {
   catch (err) { setBusy(err.message, true); }
 });
 function openShelf() { pause(); $('#shelfDlg').showModal(); renderShelf(); }
+
+/* ================= 見出し一覧 ================= */
+function openToc() {
+  if (!chunks.length) return;
+  pause();
+  const ul = $('#toc');
+  if (!chapters.length) { ul.innerHTML = '<li class="empty-row">この本には見出しが見つかりませんでした。</li>'; }
+  else {
+    let cur = -1;
+    chapters.forEach((ch, i) => { if (ch.at <= idx) cur = i; });
+    ul.innerHTML = chapters.map((ch, i) => {
+      const depth = (ch.title.match(/^\d+(\.\d+)*/) || [''])[0].split('.').filter(Boolean).length; // 1 / 1.2 / 1.2.3
+      return `<li data-at="${ch.at}" class="d${Math.min(depth, 3)} ${i === cur ? 'cur' : ''}">${esc(ch.title)}</li>`;
+    }).join('');
+  }
+  $('#tocDlg').showModal();
+  const c = ul.querySelector('.cur'); if (c) c.scrollIntoView({ block: 'center' });
+}
+$('#toc').addEventListener('click', e => {
+  const li = e.target.closest('li[data-at]'); if (!li) return;
+  idx = +li.dataset.at; $('#tocDlg').close(); show();
+});
+$('#openToc').addEventListener('click', openToc);
 
 /* ================= UI ================= */
 $('#btnPlay').addEventListener('click', toggle);

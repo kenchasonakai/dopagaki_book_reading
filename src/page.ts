@@ -12,6 +12,12 @@ export const page = () => html`<!doctype html>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%231A212B'/%3E%3Crect x='2' y='11' width='12' height='1' fill='%23D8DEE6'/%3E%3Ccircle cx='8' cy='11.5' r='2' fill='%23D9821B'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/style.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F2F4F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1318" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="RSVP">
 </head>
 <body>
 
@@ -21,6 +27,7 @@ export const page = () => html`<!doctype html>
     <span class="author" id="docAuthor"></span>
     <span class="chapter" id="docChapter"></span>
   </div>
+  <button class="btn" id="openToc" type="button">見出し</button>
   <button class="btn" id="openShelf" type="button">本棚</button>
 </header>
 
@@ -66,6 +73,14 @@ export const page = () => html`<!doctype html>
   <div class="scroller" id="zoomScroller"><img id="zoomImg" alt=""></div>
   <div class="zbar"><span id="zoomCap"></span><button class="btn" id="zoomClose" type="button">閉じる</button></div>
 </div>
+
+<dialog id="tocDlg">
+  <form class="dlg" method="dialog">
+    <h2>見出し</h2>
+    <ul class="toc" id="toc"></ul>
+    <div class="foot"><button class="btn primary" value="close" type="submit">閉じる</button></div>
+  </form>
+</dialog>
 
 <dialog id="shelfDlg">
   <form class="dlg" method="dialog">

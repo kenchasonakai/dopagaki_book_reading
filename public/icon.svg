@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="28" fill="#1A212B"/>
+  <text x="64" y="74" text-anchor="middle" font-family="IBM Plex Sans JP, Hiragino Sans, sans-serif" font-size="52" font-weight="600" fill="#E8ECF1">読</text>
+  <rect x="24" y="92" width="80" height="2" fill="#2A323D"/>
+  <circle cx="64" cy="93" r="6" fill="#D9821B"/>
+</svg>

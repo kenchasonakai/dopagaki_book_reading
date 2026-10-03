@@ -135,6 +135,15 @@ dialog::backdrop { background: rgba(10, 14, 20, .5); }
 .shelf .empty-row { color: var(--ink-3); font-size: 13px; border: 0; padding: 0; cursor: default; display: block; background: none; }
 .dlg .foot { display: flex; justify-content: flex-end; gap: 8px; }
 
+/* ---------- 見出し一覧 ---------- */
+.toc { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 60vh; overflow: auto; }
+.toc li { padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 14px; line-height: 1.4; }
+.toc li:hover { background: var(--bg); }
+.toc li.d2 { padding-left: 28px; font-size: 13px; color: var(--ink-2); }
+.toc li.d3 { padding-left: 44px; font-size: 13px; color: var(--ink-3); }
+.toc li.cur { background: var(--amber-soft); color: var(--ink); box-shadow: inset 3px 0 0 var(--amber); }
+.toc .empty-row { color: var(--ink-3); font-size: 13px; cursor: default; }
+
 @media (max-width: 640px) {
   .top { padding: 10px 14px 4px; }
   .work .chapter { display: none; }
