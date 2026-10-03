@@ -142,17 +142,22 @@ function chunkHTML(c) {
 }
 // 語全体を画面中央に置き、中央の線の上に来た文字を注視点にする。収まらなければ縮める
 function place() {
-  // 基本の文字サイズは CSS の --fs（画面幅で変わる）
+  // 基本の文字サイズは CSS の --fs（画面幅で変わる）。長い文節は CSS 側で折り返し、それでも入らなければ縮める
   let fs = parseFloat(getComputedStyle(stage).getPropertyValue('--fs')) || 64;
   wordEl.style.fontSize = fs + 'px';
   const limit = stage.clientWidth - 32;
-  if (wordEl.offsetWidth > limit) { fs = Math.max(14, Math.floor(fs * limit / wordEl.offsetWidth)); wordEl.style.fontSize = fs + 'px'; }
+  if (wordEl.scrollWidth > limit + 1) { fs = Math.max(14, Math.floor(fs * limit / wordEl.scrollWidth)); wordEl.style.fontSize = fs + 'px'; }
   wordEl.style.transform = 'translate(-50%, -50%)';
+  // レールは語の下へ（2行以上になったときは下がる）
+  stage.style.setProperty('--rail', `${Math.round(wordEl.offsetHeight / 2 + fs * 0.18)}px`);
+  // 1行目の中で、横方向の中央に最も近い文字を注視点にする
   const mid = wordEl.offsetWidth / 2;
-  let best = null, bestD = Infinity;
+  let best = null, bestD = Infinity, firstTop = null;
   for (const el of wordEl.children) {
     el.classList.remove('pv');
     if (RE_NONVIS.test(el.textContent)) continue;
+    if (firstTop === null) firstTop = el.offsetTop;
+    if (el.offsetTop > firstTop + fs * 0.5) continue;
     const d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - mid);
     if (d < bestD) { bestD = d; best = el; }
   }

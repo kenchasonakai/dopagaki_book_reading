@@ -51,13 +51,17 @@ button, input { font: inherit; color: inherit; }
 main { position: relative; display: grid; grid-template-rows: minmax(220px, 1fr) auto; min-height: 0; gap: 12px; padding: 0 16px; }
 .stage { position: relative; overflow: hidden; min-height: 200px; --fs: 64px; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 .word {
-  position: absolute; left: 50%; top: 50%; white-space: nowrap; line-height: 1.2;
+  position: absolute; left: 50%; top: 50%; line-height: 1.25; text-align: center;
+  /* 約10文字を超える文節は折り返す。行の長さは揃える */
+  width: max-content; max-width: min(calc(var(--fs) * 10.5), calc(100% - 32px));
+  white-space: normal; overflow-wrap: anywhere; text-wrap: balance;
   font-family: var(--font-read); font-weight: 500; font-size: var(--fs); letter-spacing: .01em; will-change: transform;
 }
+.word span { display: inline-block; }
 .word .pv { color: var(--amber); }
 .word.heading { font-weight: 700; }
 /* 語の下に走る細いレール。中央の点が注視点 */
-.rail { position: absolute; left: 50%; top: calc(50% + var(--fs) * .78); width: min(60vw, 420px); height: 1px; transform: translateX(-50%); background: var(--line); pointer-events: none; }
+.rail { position: absolute; left: 50%; top: calc(50% + var(--rail, var(--fs) * .78)); width: min(60vw, 420px); height: 1px; transform: translateX(-50%); background: var(--line); pointer-events: none; }
 .rail::after { content: ""; position: absolute; left: 50%; top: -3px; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); transform: translateX(-50%); }
 .stage.fig .rail, .stage.fig .word, .stage.blank .rail { display: none; }
 .figure { position: absolute; inset: 0 0 24px; margin: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; align-items: center; gap: 8px; cursor: zoom-in; }
