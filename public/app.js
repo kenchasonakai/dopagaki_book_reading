@@ -23,7 +23,7 @@ const api = {
   list: () => req('GET', '/books'),
   get: id => req('GET', `/books/${id}`),
   putPdf: (id, file) => req('PUT', `/books/${id}/pdf`, file, 'application/pdf'),
-  putImage: (id, name, blob) => req('PUT', `/books/${id}/img/${name}`, blob, 'image/png'),
+  putImage: (id, name, blob) => req('PUT', `/books/${id}/img/${name}`, blob, name.endsWith('.jpg') ? 'image/jpeg' : 'image/png'),
   putJson: (id, name, obj) => req('PUT', `/books/${id}/${name}`, JSON.stringify(obj), 'application/json'),
   del: id => req('DELETE', `/books/${id}`),
   imgUrl: (id, name) => `/api/books/${id}/img/${name}`,
@@ -385,7 +385,23 @@ stage.addEventListener('touchend', e => {
     setTimeout(() => { swiped = false; }, 400); // スワイプ直後に click が来なかった場合に備えて戻す
   }
 }, { passive: true });
-stage.addEventListener('click', e => { if (swiped) { swiped = false; return; } if (chunks.length && !e.target.closest('button, label, input')) toggle(); });
+stage.addEventListener('click', e => {
+  if (swiped) { swiped = false; return; }
+  if (!chunks.length || e.target.closest('button, label, input')) return;
+  if (e.target.closest('#figure')) { openZoom(); return; } // 図は拡大表示
+  toggle();
+});
+// 図の拡大表示
+function openZoom() {
+  const c = chunks[idx]; if (!c || !c.img) return;
+  pause();
+  $('#zoomImg').src = api.imgUrl(doc.id, c.img); $('#zoomImg').alt = c.t; $('#zoomCap').textContent = c.t;
+  $('#zoom').hidden = false;
+  $('#zoomScroller').scrollLeft = 0;
+}
+function closeZoom() { $('#zoom').hidden = true; }
+$('#zoomClose').addEventListener('click', closeZoom);
+$('#zoomScroller').addEventListener('click', e => { if (e.target === e.currentTarget) closeZoom(); });
 $('#openShelf').addEventListener('click', openShelf);
 $('#doneShelf').addEventListener('click', openShelf);
 $('#doneRestart').addEventListener('click', () => { idx = 0; show(); });
@@ -398,6 +414,7 @@ window.addEventListener('dragleave', e => { if (e.target === document.documentEl
 window.addEventListener('drop', e => { e.preventDefault(); empty.classList.remove('over'); importPdfs(e.dataTransfer && e.dataTransfer.files); });
 
 document.addEventListener('keydown', e => {
+  if (!$('#zoom').hidden) { if (e.key === 'Escape') closeZoom(); return; }
   if (document.querySelector('dialog[open]') || e.target.matches('input, textarea') || e.ctrlKey || e.metaKey || e.altKey) return;
   let handled = true;
   switch (e.key) {

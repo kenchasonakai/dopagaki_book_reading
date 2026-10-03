@@ -2,9 +2,9 @@
 //
 // 戻り値: { title, author, pages, chars, figures, paras, images }
 //   paras  … [{ text, heading }] または [{ img: 'fig-1.png', text: 'キャプション' }]
-//   images … { 'fig-1.png': Blob }
+//   images … { 'fig-1.png': Blob }  （大きい図は fig-N.jpg）
 const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/';
-const SCALE = 2; // 図の解像度（PDFの1pt = 2px）
+const SCALE = 4; // 図の解像度（PDFの1pt = 4px）。拡大表示でもぼやけにくいように高めにしている
 
 let lib = null;
 async function loadPdfjs() {
@@ -82,7 +82,11 @@ async function cropFigure(rendered, band) {
   const out = document.createElement('canvas');
   out.width = x1 - x0 + 1; out.height = y1 - y0 + 1;
   out.getContext('2d').drawImage(canvas, x0, top + y0, out.width, out.height, 0, 0, out.width, out.height);
-  return new Promise(res => out.toBlob(res, 'image/png'));
+  // 線画は PNG、スクリーンショットや写真で PNG が大きくなるものは JPEG にする
+  const png = await new Promise(res => out.toBlob(res, 'image/png'));
+  if (!png || png.size <= 600 * 1024) return png ? { blob: png, ext: 'png' } : null;
+  const jpg = await new Promise(res => out.toBlob(res, 'image/jpeg', 0.9));
+  return jpg && jpg.size < png.size ? { blob: jpg, ext: 'jpg' } : { blob: png, ext: 'png' };
 }
 
 /* ---------- 本体 ---------- */
@@ -134,11 +138,11 @@ export async function extractPdf(file, onProgress = () => {}) {
           ? { top: up ? up.y - up.h * 0.35 : pageTop, bottom: l.y + l.h * 1.15 }
           : { top: l.y - l.h * 0.35, bottom: down ? down.y + down.h * 1.15 : pageBottom };
         if (!rendered) { onProgress(`図を切り出しています… ${pi + 1} / ${pdf.numPages} ページ`); rendered = await renderPage(page); }
-        const blob = await cropFigure(rendered, band);
-        if (blob) {
+        const fig = await cropFigure(rendered, band);
+        if (fig) {
           figN++;
-          const name = `fig-${figN}.png`;
-          images[name] = blob;
+          const name = `fig-${figN}.${fig.ext}`;
+          images[name] = fig.blob;
           flush();
           // 「図1.1ルート…」→「図1.1 ルート…」と番号の後ろに空白を入れる
           const caption = tightenSpaces(l.text.replace(/^[▲▼△▽]\s*/, '')).replace(/^(図|表)\s*([\d０-９.．‐-]+)[\s:：]*/, '$1$2 ');

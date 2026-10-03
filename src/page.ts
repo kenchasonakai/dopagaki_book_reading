@@ -28,7 +28,7 @@ export const page = () => html`<!doctype html>
   <div class="stage" id="stage">
     <div class="rail"></div>
     <div class="word" id="word"></div>
-    <figure class="figure" id="figure" hidden><img id="figImg" alt=""><figcaption id="figCap"></figcaption></figure>
+    <figure class="figure" id="figure" hidden title="タップで拡大"><img id="figImg" alt=""><figcaption id="figCap"></figcaption></figure>
     <div class="hint" id="hint" hidden><span class="kb"><kbd>Space</kbd> で再生　<kbd>←</kbd><kbd>→</kbd> 戻る / 進む</span><span class="tap">タップで再生　左右スワイプで戻る / 進む</span></div>
     <div class="empty" id="empty">
       <p>PDFをここにドロップ（複数可）</p>
@@ -61,6 +61,11 @@ export const page = () => html`<!doctype html>
     </div>
   </div>
 </footer>
+
+<div class="zoom" id="zoom" hidden>
+  <div class="scroller" id="zoomScroller"><img id="zoomImg" alt=""></div>
+  <div class="zbar"><span id="zoomCap"></span><button class="btn" id="zoomClose" type="button">閉じる</button></div>
+</div>
 
 <dialog id="shelfDlg">
   <form class="dlg" method="dialog">

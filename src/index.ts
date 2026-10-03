@@ -9,9 +9,9 @@ type Bindings = Cloudflare.Env
 //   books/<id>/meta.json      タイトル・著者・文字数など
 //   books/<id>/paras.json     本文（段落の配列）
 //   books/<id>/progress.json  読書位置
-//   books/<id>/img/fig-N.png  図
+//   books/<id>/img/fig-N.png  図（大きいものは .jpg）
 const ID = /^[a-z0-9]{6,24}$/
-const IMG = /^fig-\d{1,4}\.png$/
+const IMG = /^fig-\d{1,4}\.(png|jpg)$/
 const key = (id: string, name: string) => `books/${id}/${name}`
 
 type Meta = { title: string; author: string; pages: number; chars: number; figures: number; added: number }
@@ -111,14 +111,16 @@ api.put('/books/:id/pdf', async (c) => {
   await c.env.BOOKS.put(key(c.req.param('id'), 'book.pdf'), buf, { httpMetadata: { contentType: 'application/pdf' } })
   return c.json({ ok: true })
 })
-const PNG_SIG = [0x89, 0x50, 0x4e, 0x47]
+const IMG_SIG: Record<string, number[]> = { png: [0x89, 0x50, 0x4e, 0x47], jpg: [0xff, 0xd8, 0xff] }
+const imgType = (name: string) => (name.endsWith('.jpg') ? 'image/jpeg' : 'image/png')
 api.put('/books/:id/img/:name', async (c) => {
   const name = c.req.param('name')
   if (!IMG.test(name)) return c.json({ error: 'bad name' }, 400)
   const buf = await readBody(c, MAX_IMG)
   if (!buf) return c.json({ error: 'too large' }, 413)
-  if (!PNG_SIG.every((b, i) => new Uint8Array(buf, 0, 4)[i] === b)) return c.json({ error: 'not a png' }, 400)
-  await c.env.BOOKS.put(key(c.req.param('id'), `img/${name}`), buf, { httpMetadata: { contentType: 'image/png' } })
+  const sig = IMG_SIG[name.slice(-3)], head = new Uint8Array(buf, 0, sig.length)
+  if (!sig.every((b, i) => head[i] === b)) return c.json({ error: 'not an image' }, 400)
+  await c.env.BOOKS.put(key(c.req.param('id'), `img/${name}`), buf, { httpMetadata: { contentType: imgType(name) } })
   return c.json({ ok: true })
 })
 for (const name of ['paras', 'meta', 'progress'] as const) {
@@ -141,7 +143,7 @@ api.get('/books/:id/img/:name', async (c) => {
   const o = await c.env.BOOKS.get(key(c.req.param('id'), `img/${name}`))
   if (!o) return c.notFound()
   return new Response(o.body, {
-    headers: { 'content-type': 'image/png', etag: o.httpEtag, 'cache-control': 'private, max-age=31536000, immutable' },
+    headers: { 'content-type': imgType(name), etag: o.httpEtag, 'cache-control': 'private, max-age=31536000, immutable' },
   })
 })
 api.get('/books/:id/pdf', async (c) => {
