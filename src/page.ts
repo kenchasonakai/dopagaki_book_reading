@@ -29,7 +29,7 @@ export const page = () => html`<!doctype html>
     <div class="rail"></div>
     <div class="word" id="word"></div>
     <figure class="figure" id="figure" hidden><img id="figImg" alt=""><figcaption id="figCap"></figcaption></figure>
-    <div class="hint" id="hint" hidden><kbd>Space</kbd> で再生</div>
+    <div class="hint" id="hint" hidden><span class="kb"><kbd>Space</kbd> で再生　<kbd>←</kbd><kbd>→</kbd> 戻る / 進む</span><span class="tap">タップで再生　左右スワイプで戻る / 進む</span></div>
     <div class="empty" id="empty">
       <p>PDFをここにドロップ（複数可）</p>
       <label class="btn primary"><input type="file" id="file" accept=".pdf,application/pdf" multiple hidden>PDFを選ぶ</label>

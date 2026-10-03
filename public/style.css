@@ -49,7 +49,7 @@ button, input { font: inherit; color: inherit; }
 
 /* ---------- stage ---------- */
 main { position: relative; display: grid; grid-template-rows: minmax(220px, 1fr) auto; min-height: 0; gap: 12px; padding: 0 16px; }
-.stage { position: relative; overflow: hidden; min-height: 240px; --fs: 64px; }
+.stage { position: relative; overflow: hidden; min-height: 200px; --fs: 64px; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 .word {
   position: absolute; left: 50%; top: 50%; white-space: nowrap; line-height: 1.2;
   font-family: var(--font-read); font-weight: 500; font-size: var(--fs); letter-spacing: .01em; will-change: transform;
@@ -64,6 +64,8 @@ main { position: relative; display: grid; grid-template-rows: minmax(220px, 1fr)
 .figure img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; background: #fff; box-shadow: var(--shadow); }
 .figure figcaption { font-size: 13px; color: var(--ink-2); text-align: center; }
 .hint { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 12px; color: var(--ink-3); }
+.hint .tap { display: none; }
+@media (hover: none) and (pointer: coarse) { .hint .kb { display: none; } .hint .tap { display: inline; } }
 .empty, .busy, .done { position: absolute; inset: 0; display: grid; place-content: center; gap: 12px; text-align: center; padding: 16px; }
 .empty { inset: 8px 0 24px; border: 1.5px dashed var(--line); border-radius: 16px; transition: border-color .15s, background .15s; }
 .empty p, .busy p, .done p { margin: 0; font-size: 18px; font-weight: 600; }
@@ -123,5 +125,21 @@ dialog::backdrop { background: rgba(10, 14, 20, .5); }
 .shelf .empty-row { color: var(--ink-3); font-size: 13px; border: 0; padding: 0; cursor: default; display: block; background: none; }
 .dlg .foot { display: flex; justify-content: flex-end; gap: 8px; }
 
-@media (max-width: 640px) { .work .chapter { display: none; } main { padding: 0 12px; } .bar { margin-inline: 12px; } }
+@media (max-width: 640px) {
+  .top { padding: 10px 14px 4px; }
+  .work .chapter { display: none; }
+  .work h1 { font-size: 14px; }
+  main { padding: 0 12px; gap: 10px; }
+  .stage { --fs: 48px; }
+  .rail { width: 70vw; }
+  .figure { inset: 4px 0 32px; }
+  .context { max-height: 26vh; font-size: 14px; line-height: 1.8; padding: 12px 14px 14px; }
+  .bar { margin: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px)); padding: 8px 10px; gap: 4px; justify-content: center; border-radius: 16px; }
+  .tbtn { width: 40px; height: 40px; }
+  .tbtn.play { width: 48px; height: 48px; }
+  .progress { flex-basis: 100%; padding-left: 4px; }
+  .dlg { padding: 18px 16px; }
+  .shelf li { padding: 10px 12px; }
+}
+@media (max-height: 700px) { .context { max-height: 22vh; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

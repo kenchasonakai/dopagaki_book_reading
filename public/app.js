@@ -2,7 +2,6 @@ import { extractPdf } from './extract.js';
 
 /* ================= 固定値 ================= */
 const CPM_DEFAULT = 1200; // 字/分（↑↓キーで100ずつ変えられる）
-const FONT_SIZE = 64;     // px
 const FIG_SEC = 8;        // 図を表示する秒数
 const MAX_CHARS = 14, MIN_CHARS = 3; // 1文節の長さの目安
 
@@ -137,27 +136,27 @@ function findByPos(pos) {
 
 /* ================= 表示 ================= */
 const stage = $('#stage'), wordEl = $('#word');
-stage.style.setProperty('--fs', FONT_SIZE + 'px');
 function chunkHTML(c) {
-  const chars = [...c.t.trim()];
-  const vis = chars.map((ch, i) => RE_NONVIS.test(ch) ? -1 : i).filter(i => i >= 0);
-  const pv = vis.length ? vis[Math.round((vis.length - 1) * 0.4)] : -1; // 注視点は少し左寄り
-  return chars.map((ch, i) => i === pv ? `<span class="pv">${esc(ch)}</span>` : esc(ch)).join('');
+  // 1文字ずつ span にして、配置後に中央へ来た文字を注視点として色づける
+  return [...c.t.trim()].map(ch => `<span>${esc(ch)}</span>`).join('');
 }
-// 注視点の文字が画面中央の赤線に来るように置く。収まらなければ縮める
+// 語全体を画面中央に置き、中央の線の上に来た文字を注視点にする。収まらなければ縮める
 function place() {
-  let fs = FONT_SIZE;
+  // 基本の文字サイズは CSS の --fs（画面幅で変わる）
+  let fs = parseFloat(getComputedStyle(stage).getPropertyValue('--fs')) || 64;
   wordEl.style.fontSize = fs + 'px';
-  const limit = stage.clientWidth / 2 - 16;
-  for (let pass = 0; pass < 2; pass++) {
-    const pv = wordEl.querySelector('.pv');
-    const total = wordEl.offsetWidth;
-    const center = pv ? pv.offsetLeft + pv.offsetWidth / 2 : total / 2;
-    const need = Math.max(center, total - center);
-    if (need > limit && pass === 0) { fs = Math.max(14, Math.floor(fs * limit / need)); wordEl.style.fontSize = fs + 'px'; continue; }
-    wordEl.style.transform = `translate(${-center}px, -50%)`;
-    break;
+  const limit = stage.clientWidth - 32;
+  if (wordEl.offsetWidth > limit) { fs = Math.max(14, Math.floor(fs * limit / wordEl.offsetWidth)); wordEl.style.fontSize = fs + 'px'; }
+  wordEl.style.transform = 'translate(-50%, -50%)';
+  const mid = wordEl.offsetWidth / 2;
+  let best = null, bestD = Infinity;
+  for (const el of wordEl.children) {
+    el.classList.remove('pv');
+    if (RE_NONVIS.test(el.textContent)) continue;
+    const d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - mid);
+    if (d < bestD) { bestD = d; best = el; }
   }
+  if (best) best.classList.add('pv');
 }
 function show() {
   const c = chunks[idx];
@@ -374,7 +373,19 @@ $('#btnNext').addEventListener('click', () => step(1));
 $('#btnParaPrev').addEventListener('click', () => paraStep(-1));
 $('#btnParaNext').addEventListener('click', () => paraStep(1));
 $('#seek').addEventListener('input', e => { if (!chunks.length) return; idx = +e.target.value; show(); if (playing) schedule(); });
-$('#stage').addEventListener('click', e => { if (chunks.length && !e.target.closest('button, label, input')) toggle(); });
+// タップで再生/停止、左右スワイプで戻る/進む（スワイプ後のクリックは無視する）
+let swiped = false, touchX = null, touchY = null;
+stage.addEventListener('touchstart', e => { const t = e.changedTouches[0]; touchX = t.clientX; touchY = t.clientY; swiped = false; }, { passive: true });
+stage.addEventListener('touchend', e => {
+  if (touchX == null) return;
+  const t = e.changedTouches[0], dx = t.clientX - touchX, dy = t.clientY - touchY;
+  touchX = null;
+  if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5 && chunks.length) {
+    swiped = true; step(dx < 0 ? 1 : -1);
+    setTimeout(() => { swiped = false; }, 400); // スワイプ直後に click が来なかった場合に備えて戻す
+  }
+}, { passive: true });
+stage.addEventListener('click', e => { if (swiped) { swiped = false; return; } if (chunks.length && !e.target.closest('button, label, input')) toggle(); });
 $('#openShelf').addEventListener('click', openShelf);
 $('#doneShelf').addEventListener('click', openShelf);
 $('#doneRestart').addEventListener('click', () => { idx = 0; show(); });
