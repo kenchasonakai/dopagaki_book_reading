@@ -1,0 +1,126 @@
+/* Layout: 画面全体を静かな読書面にして、語は中央の「レール」の上に置く。操作は下の浮いたドックにまとめる */
+:root {
+  --bg: #F2F4F7;          /* 寒色寄りの淡いグレー */
+  --surface: #FFFFFF;
+  --line: #D8DEE6;
+  --ink: #1A212B;          /* 青みのある濃いインク */
+  --ink-2: #5E6B7A;        /* 補助テキスト */
+  --ink-3: #98A3B0;        /* さらに薄く */
+  --amber: #D9821B;        /* 注視点・進捗 */
+  --amber-soft: #FBEFD9;
+  --blue: #2E6BE6;         /* フォーカスリング・リンク */
+  --shadow: 0 10px 30px -14px rgba(26, 33, 43, .28);
+  --font-read: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  --font-ui: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0F1318; --surface: #171C23; --line: #2A323D;
+    --ink: #E8ECF1; --ink-2: #A3AEBB; --ink-3: #6B7684;
+    --amber: #F0A23B; --amber-soft: #3A2C16; --blue: #6FA0FF;
+    --shadow: 0 10px 30px -14px rgba(0, 0, 0, .7);
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--font-ui); font-size: 14px; line-height: 1.5;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); min-height: 100%;
+}
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* ---------- header ---------- */
+.top { display: flex; align-items: center; gap: 8px 16px; padding: 14px 20px 6px; }
+.work { min-width: 0; flex: 1; display: flex; align-items: baseline; gap: 10px; }
+.work h1 { margin: 0; flex: 0 1 auto; min-width: 0; font-weight: 600; font-size: 15px; letter-spacing: .01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.work .author { flex: none; color: var(--ink-2); font-size: 13px; white-space: nowrap; }
+.work .chapter { flex: 0 1 auto; min-width: 0; color: var(--ink-3); font-size: 12px; padding-left: 10px; border-left: 1px solid var(--line); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40ch; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; cursor: pointer; white-space: nowrap; display: inline-block; font-size: 13px; }
+.btn:hover { border-color: var(--ink-3); }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.small { padding: 3px 10px; font-size: 12px; }
+
+/* ---------- stage ---------- */
+main { position: relative; display: grid; grid-template-rows: minmax(220px, 1fr) auto; min-height: 0; gap: 12px; padding: 0 16px; }
+.stage { position: relative; overflow: hidden; min-height: 240px; --fs: 64px; }
+.word {
+  position: absolute; left: 50%; top: 50%; white-space: nowrap; line-height: 1.2;
+  font-family: var(--font-read); font-weight: 500; font-size: var(--fs); letter-spacing: .01em; will-change: transform;
+}
+.word .pv { color: var(--amber); }
+.word.heading { font-weight: 700; }
+/* 語の下に走る細いレール。中央の点が注視点 */
+.rail { position: absolute; left: 50%; top: calc(50% + var(--fs) * .78); width: min(60vw, 420px); height: 1px; transform: translateX(-50%); background: var(--line); pointer-events: none; }
+.rail::after { content: ""; position: absolute; left: 50%; top: -3px; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); transform: translateX(-50%); }
+.stage.fig .rail, .stage.fig .word, .stage.blank .rail { display: none; }
+.figure { position: absolute; inset: 8px 0 36px; margin: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; align-items: center; gap: 10px; }
+.figure img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; background: #fff; box-shadow: var(--shadow); }
+.figure figcaption { font-size: 13px; color: var(--ink-2); text-align: center; }
+.hint { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 12px; color: var(--ink-3); }
+.empty, .busy, .done { position: absolute; inset: 0; display: grid; place-content: center; gap: 12px; text-align: center; padding: 16px; }
+.empty { inset: 8px 0 24px; border: 1.5px dashed var(--line); border-radius: 16px; transition: border-color .15s, background .15s; }
+.empty p, .busy p, .done p { margin: 0; font-size: 18px; font-weight: 600; }
+.empty small { color: var(--ink-3); font-size: 12px; }
+.empty.over { border-color: var(--amber); background: var(--amber-soft); }
+.busy p { font-weight: 400; font-size: 14px; color: var(--ink-2); }
+.done { background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(2px); }
+.done .row { display: flex; gap: 8px; justify-content: center; }
+
+/* ---------- context (paused) ---------- */
+.context {
+  max-height: 30vh; overflow: auto; padding: 14px 18px 16px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  font-family: var(--font-read); font-size: 15px; line-height: 1.9;
+}
+.context .inner { max-width: 46em; margin: 0 auto; }
+.context .cap { font-family: var(--font-ui); font-size: 11px; letter-spacing: .06em; color: var(--ink-3); margin-bottom: 6px; }
+.context span[data-i] { cursor: pointer; border-radius: 4px; padding: 1px 0; }
+.context span[data-i]:hover { background: var(--amber-soft); }
+.context span.cur { background: var(--amber); color: #fff; padding-inline: 2px; }
+.context span.read { color: var(--ink-3); }
+
+/* ---------- dock ---------- */
+.bar {
+  margin: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 14px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow);
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.tbtn { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--ink-2); cursor: pointer; padding: 0; }
+.tbtn:hover { background: var(--bg); color: var(--ink); }
+.tbtn svg { width: 16px; height: 16px; fill: currentColor; }
+.tbtn.play { width: 44px; height: 44px; background: var(--amber); color: #fff; }
+.tbtn.play:hover { background: var(--amber); filter: brightness(.95); }
+.tbtn.play svg { width: 18px; height: 18px; }
+.progress { flex: 1 1 220px; min-width: 0; display: grid; gap: 4px; padding-left: 8px; }
+.progress input { width: 100%; accent-color: var(--amber); margin: 0; }
+.stats { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-3); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.stats b { color: var(--ink-2); font-weight: 500; }
+kbd { font-family: var(--font-num); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; background: var(--surface); font-size: 11px; color: var(--ink-2); }
+
+/* ---------- 本棚 ---------- */
+dialog { border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--ink); width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; box-shadow: var(--shadow); }
+dialog::backdrop { background: rgba(10, 14, 20, .5); }
+.dlg { padding: 22px; display: grid; gap: 18px; margin: 0; }
+.dlg h2 { margin: 0; font-size: 17px; font-weight: 600; }
+.shelf { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.shelf li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; background: var(--bg); }
+.shelf li:hover { border-color: var(--ink-3); }
+.shelf li.cur { border-color: var(--amber); box-shadow: inset 3px 0 0 var(--amber); }
+.shelf .t { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.shelf .t b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shelf .t small { color: var(--ink-3); font-size: 12px; font-family: var(--font-num); }
+.shelf .p { font-size: 12px; color: var(--ink-3); font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.shelf .p b { color: var(--amber); font-weight: 600; }
+.shelf .empty-row { color: var(--ink-3); font-size: 13px; border: 0; padding: 0; cursor: default; display: block; background: none; }
+.dlg .foot { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 640px) { .work .chapter { display: none; } main { padding: 0 12px; } .bar { margin-inline: 12px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
