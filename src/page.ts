@@ -60,6 +60,7 @@ export const page = () => html`<!doctype html>
   <button class="tbtn play" id="btnPlay" type="button" title="再生 / 停止 (Space)" aria-label="再生"><svg viewBox="0 0 16 16" id="playIcon"><path d="M4 2l10 6-10 6z"/></svg></button>
   <button class="tbtn" id="btnNext" type="button" title="1つ進む (→)" aria-label="1つ進む"><svg viewBox="0 0 16 16"><path d="M4 2v12l8-6z"/></svg></button>
   <button class="tbtn" id="btnParaNext" type="button" title="次の段落 (Shift+→)" aria-label="次の段落"><svg viewBox="0 0 16 16"><path d="M12 2h2v12h-2zM2 2v12l9-6z"/></svg></button>
+  <button class="btn small rate" id="rate" type="button" title="倍速（押すたびに 1.0× → 1.5× と切り替え）">1.0×</button>
   <div class="progress">
     <input type="range" id="seek" min="0" max="0" value="0" aria-label="読書位置">
     <div class="stats">

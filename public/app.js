@@ -12,6 +12,10 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
 };
 let cpm = store.get('rsvp.cpm', CPM_DEFAULT);
+// 倍速。文章も図の表示時間もこの倍率で速くなる
+const RATES = [1, 1.1, 1.2, 1.3, 1.4, 1.5];
+let rate = RATES.includes(store.get('rsvp.rate', 1)) ? store.get('rsvp.rate', 1) : 1;
+const effCpm = () => cpm * rate;
 
 /* ================= サーバー（R2）とのやりとり ================= */
 async function req(method, path, body, type) {
@@ -186,7 +190,7 @@ function updateStats() {
   $('#statPos').textContent = read.toLocaleString();
   $('#statTotal').textContent = totalLen.toLocaleString();
   $('#statPct').textContent = totalLen ? (read / totalLen * 100).toFixed(1) : '0';
-  $('#statRemain').textContent = chunks.length ? fmtTime(suffix[idx] * 60000 / cpm) : '—';
+  $('#statRemain').textContent = chunks.length ? fmtTime(suffix[idx] * 60000 / effCpm()) : '—';
   let ch = null;
   for (const x of chapters) { if (x.at <= idx) ch = x; else break; }
   $('#docChapter').textContent = ch ? ch.title : '';
@@ -225,7 +229,7 @@ function setPlayIcon() {
 function schedule() {
   clearTimeout(timer);
   const c = chunks[idx];
-  const d = c.img ? FIG_SEC * 1000 : weights[idx] * 60000 / cpm;
+  const d = c.img ? FIG_SEC * 1000 / rate : weights[idx] * 60000 / effCpm();
   timer = setTimeout(() => {
     if (idx < chunks.length - 1) { idx++; show(); schedule(); }
     else { pause(); $('#done').hidden = false; }
@@ -249,6 +253,15 @@ function paraStep(d) {
   idx = paraStart[pi]; show(); if (playing) schedule();
 }
 function setCpm(v) { cpm = Math.min(4000, Math.max(200, v)); store.set('rsvp.cpm', cpm); computeWeights(); updateStats(); }
+// 倍速ボタン: 押すたびに 1.0 → 1.1 → … → 1.5 → 1.0 と切り替わる
+function renderRate() { $('#rate').textContent = rate.toFixed(1) + '×'; $('#rate').classList.toggle('on', rate !== 1); }
+function cycleRate() {
+  rate = RATES[(RATES.indexOf(rate) + 1) % RATES.length];
+  store.set('rsvp.rate', rate); renderRate(); updateStats();
+  if (playing) schedule(); // 再生中なら次の文節から新しい速さに
+}
+$('#rate').addEventListener('click', cycleRate);
+renderRate();
 
 /* ================= 読書位置の保存（R2） ================= */
 let saveTimer = null, lastSaved = '';
