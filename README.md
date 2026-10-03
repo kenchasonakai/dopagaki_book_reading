@@ -20,7 +20,7 @@ npm run deploy
 
 `main` への push は Workers Builds が拾って自動でデプロイします（ビルド `npm run build`、デプロイ `npx cf deploy --prebuilt`）。
 
-公開URLは誰でも開けてしまうので、自分だけで使うなら Cloudflare Access（Zero Trust）でログインを挟むことを勧めます。
+公開URLは誰でも開けてしまうので、自分だけで使うなら Cloudflare Access（Zero Trust）でログインを挟みます。アプリ側に認証はなく、Access が全パス（`/api/*` 含む）を守る前提です。設定は `cf zero-trust identity-providers create`（ワンタイムコード）と `cf zero-trust access applications create`（対象ドメインと許可するメールアドレス）の2コマンドで済みます。
 
 ## 使い方
 
