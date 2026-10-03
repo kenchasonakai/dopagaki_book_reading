@@ -31,8 +31,8 @@ export const page = () => html`<!doctype html>
     <figure class="figure" id="figure" hidden><img id="figImg" alt=""><figcaption id="figCap"></figcaption></figure>
     <div class="hint" id="hint" hidden><kbd>Space</kbd> で再生</div>
     <div class="empty" id="empty">
-      <p>PDFをここにドロップ</p>
-      <label class="btn primary"><input type="file" id="file" accept=".pdf,application/pdf" hidden>PDFを選ぶ</label>
+      <p>PDFをここにドロップ（複数可）</p>
+      <label class="btn primary"><input type="file" id="file" accept=".pdf,application/pdf" multiple hidden>PDFを選ぶ</label>
       <small>解析はこのブラウザの中で行い、本文と図は本棚（R2）に保存されます。</small>
     </div>
     <div class="busy" id="busy" hidden><p id="busyMsg"></p></div>
@@ -67,7 +67,7 @@ export const page = () => html`<!doctype html>
     <h2>本棚</h2>
     <ul class="shelf" id="shelf"></ul>
     <div class="foot">
-      <label class="btn"><input type="file" id="file2" accept=".pdf,application/pdf" hidden>PDFを追加</label>
+      <label class="btn"><input type="file" id="file2" accept=".pdf,application/pdf" multiple hidden>PDFを追加</label>
       <button class="btn primary" value="close" type="submit">閉じる</button>
     </div>
   </form>

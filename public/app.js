@@ -286,31 +286,47 @@ function showEmpty() {
   setPlayIcon(); updateStats();
 }
 // ブラウザで解析 → PDF・図・本文・meta の順にR2へ。meta.json を最後に置くことで、途中で止まった本は一覧に出ない
-async function importPdf(file) {
-  if (!file) return;
-  if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { setBusy('PDFファイルを選んでください。', true); return; }
+async function importPdf(file, prefix = '') {
+  const say = msg => setBusy(prefix + msg);
+  const r = await extractPdf(file, say);
+  if (!r.paras.length) throw new Error('文字を取り出せませんでした（画像だけのPDFの可能性があります）');
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  say('PDFを保存しています…');
+  await api.putPdf(id, file);
+  const names = Object.keys(r.images);
+  let done = 0;
+  const worker = async () => { let n; while ((n = names.shift())) { await api.putImage(id, n, r.images[n]); say(`図を保存しています… ${++done} / ${r.figures}`); } };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  say('本文を保存しています…');
+  await api.putJson(id, 'paras', r.paras);
+  const meta = { title: r.title, author: r.author, pages: r.pages, chars: r.chars, figures: r.figures, added: Date.now() };
+  await api.putJson(id, 'meta', meta);
+  return { id, meta, paras: r.paras, progress: null };
+}
+// 複数ファイルは1冊ずつ順に取り込む。最後に、最初に成功した本を開く
+let importing = false;
+async function importPdfs(fileList) {
+  const files = [...(fileList || [])].filter(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
+  if (!files.length) { setBusy('PDFファイルを選んでください。', true); return; }
+  if (importing) { setBusy('いま取り込み中です。終わるまで待ってください。', true); return; }
+  importing = true;
   pause();
   $('#shelfDlg').open && $('#shelfDlg').close();
-  try {
-    const r = await extractPdf(file, setBusy);
-    if (!r.paras.length) throw new Error('このPDFからは文字を取り出せませんでした（画像だけのPDFの可能性があります）。');
-    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    setBusy('PDFを保存しています…');
-    await api.putPdf(id, file);
-    const names = Object.keys(r.images);
-    let done = 0;
-    const worker = async () => { let n; while ((n = names.shift())) { await api.putImage(id, n, r.images[n]); setBusy(`図を保存しています… ${++done} / ${r.figures}`); } };
-    await Promise.all([worker(), worker(), worker(), worker()]);
-    setBusy('本文を保存しています…');
-    await api.putJson(id, 'paras', r.paras);
-    const meta = { title: r.title, author: r.author, pages: r.pages, chars: r.chars, figures: r.figures, added: Date.now() };
-    await api.putJson(id, 'meta', meta);
-    $('#busy').hidden = true;
-    openBook({ id, meta, paras: r.paras, progress: null });
-  } catch (e) {
-    console.error(e);
-    setBusy(e.message || String(e), true);
+  let first = null; const failed = [];
+  for (let i = 0; i < files.length; i++) {
+    const prefix = files.length > 1 ? `${i + 1} / ${files.length} 冊目「${files[i].name.replace(/\.pdf$/i, '')}」\n` : '';
+    try {
+      const book = await importPdf(files[i], prefix);
+      if (!first) first = book;
+    } catch (e) {
+      console.error(e);
+      failed.push(`${files[i].name}: ${e.message || e}`);
+    }
   }
+  importing = false;
+  $('#busy').hidden = true;
+  if (first) openBook(first);
+  if (failed.length) setBusy(`${failed.length}件を取り込めませんでした。\n${failed.join('\n')}`, true);
 }
 let busyTimer = null;
 function setBusy(msg, isError) {
@@ -362,13 +378,13 @@ $('#stage').addEventListener('click', e => { if (chunks.length && !e.target.clos
 $('#openShelf').addEventListener('click', openShelf);
 $('#doneShelf').addEventListener('click', openShelf);
 $('#doneRestart').addEventListener('click', () => { idx = 0; show(); });
-for (const id of ['#file', '#file2']) $(id).addEventListener('change', e => { importPdf(e.target.files[0]); e.target.value = ''; });
+for (const id of ['#file', '#file2']) $(id).addEventListener('change', e => { importPdfs(e.target.files); e.target.value = ''; });
 
 // ドラッグ＆ドロップ（画面全体で受け付け）
 const empty = $('#empty');
 ['dragenter', 'dragover'].forEach(t => window.addEventListener(t, e => { e.preventDefault(); empty.classList.add('over'); }));
 window.addEventListener('dragleave', e => { if (e.target === document.documentElement) empty.classList.remove('over'); });
-window.addEventListener('drop', e => { e.preventDefault(); empty.classList.remove('over'); importPdf(e.dataTransfer && e.dataTransfer.files[0]); });
+window.addEventListener('drop', e => { e.preventDefault(); empty.classList.remove('over'); importPdfs(e.dataTransfer && e.dataTransfer.files); });
 
 document.addEventListener('keydown', e => {
   if (document.querySelector('dialog[open]') || e.target.matches('input, textarea') || e.ctrlKey || e.metaKey || e.altKey) return;

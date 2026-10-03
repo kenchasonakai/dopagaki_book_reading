@@ -69,7 +69,7 @@ main { position: relative; display: grid; grid-template-rows: minmax(220px, 1fr)
 .empty p, .busy p, .done p { margin: 0; font-size: 18px; font-weight: 600; }
 .empty small { color: var(--ink-3); font-size: 12px; }
 .empty.over { border-color: var(--amber); background: var(--amber-soft); }
-.busy p { font-weight: 400; font-size: 14px; color: var(--ink-2); }
+.busy p { font-weight: 400; font-size: 14px; color: var(--ink-2); white-space: pre-line; line-height: 1.8; }
 .done { background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(2px); }
 .done .row { display: flex; gap: 8px; justify-content: center; }
 
