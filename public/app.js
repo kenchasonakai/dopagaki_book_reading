@@ -136,13 +136,9 @@ function findByPos(pos) {
 
 /* ================= 表示 ================= */
 const stage = $('#stage'), wordEl = $('#word');
-function chunkHTML(c) {
-  // 1文字ずつ span にして、配置後に中央へ来た文字を注視点として色づける
-  return [...c.t.trim()].map(ch => `<span>${esc(ch)}</span>`).join('');
-}
-// 語全体を画面中央に置き、中央の線の上に来た文字を注視点にする。収まらなければ縮める
+// 語全体を画面中央に置く。長い文節は CSS 側で折り返し、それでも入らなければ縮める
 function place() {
-  // 基本の文字サイズは CSS の --fs（画面幅で変わる）。長い文節は CSS 側で折り返し、それでも入らなければ縮める
+  // 基本の文字サイズは CSS の --fs（画面幅で変わる）
   let fs = parseFloat(getComputedStyle(stage).getPropertyValue('--fs')) || 64;
   wordEl.style.fontSize = fs + 'px';
   const limit = stage.clientWidth - 32;
@@ -150,18 +146,6 @@ function place() {
   wordEl.style.transform = 'translate(-50%, -50%)';
   // レールは語の下へ（2行以上になったときは下がる）
   stage.style.setProperty('--rail', `${Math.round(wordEl.offsetHeight / 2 + fs * 0.18)}px`);
-  // 1行目の中で、横方向の中央に最も近い文字を注視点にする
-  const mid = wordEl.offsetWidth / 2;
-  let best = null, bestD = Infinity, firstTop = null;
-  for (const el of wordEl.children) {
-    el.classList.remove('pv');
-    if (RE_NONVIS.test(el.textContent)) continue;
-    if (firstTop === null) firstTop = el.offsetTop;
-    if (el.offsetTop > firstTop + fs * 0.5) continue;
-    const d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - mid);
-    if (d < bestD) { bestD = d; best = el; }
-  }
-  if (best) best.classList.add('pv');
 }
 function show() {
   const c = chunks[idx];
@@ -170,7 +154,7 @@ function show() {
   stage.classList.toggle('fig', !!c.img);
   $('#figure').hidden = !c.img;
   if (c.img) { $('#figImg').src = api.imgUrl(doc.id, c.img); $('#figImg').alt = c.t; $('#figCap').textContent = c.t; }
-  else { wordEl.innerHTML = chunkHTML(c); wordEl.classList.toggle('heading', !!c.heading); place(); }
+  else { wordEl.textContent = c.t.trim(); wordEl.classList.toggle('heading', !!c.heading); place(); }
   preloadFigures();
   updateStats();
   if (!playing) renderContext();

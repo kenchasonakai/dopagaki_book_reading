@@ -57,8 +57,6 @@ main { position: relative; display: grid; grid-template-rows: minmax(220px, 1fr)
   white-space: normal; overflow-wrap: anywhere; text-wrap: balance;
   font-family: var(--font-read); font-weight: 500; font-size: var(--fs); letter-spacing: .01em; will-change: transform;
 }
-.word span { display: inline-block; }
-.word .pv { color: var(--amber); }
 .word.heading { font-weight: 700; }
 /* 語の下に走る細いレール。中央の点が注視点 */
 .rail { position: absolute; left: 50%; top: calc(50% + var(--rail, var(--fs) * .78)); width: min(60vw, 420px); height: 1px; transform: translateX(-50%); background: var(--line); pointer-events: none; }
