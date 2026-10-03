@@ -18,6 +18,8 @@ npx cf r2 buckets create rsvp-books
 npm run deploy
 ```
 
+`main` への push は Workers Builds が拾って自動でデプロイします（ビルド `npm run build`、デプロイ `npx cf deploy --prebuilt`）。
+
 公開URLは誰でも開けてしまうので、自分だけで使うなら Cloudflare Access（Zero Trust）でログインを挟むことを勧めます。
 
 ## 使い方
